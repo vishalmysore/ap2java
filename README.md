@@ -2,6 +2,9 @@
 
 A Java implementation of Google's Agent Payments Protocol (AP2) built on top of a2ajava.
 
+⚠️ Disclaimer:
+The AP2 protocol is new and still evolving. I have made every effort to validate the implementation details presented here and build a sample java implementation on top of a2ajava; however, some of the technical examples (such as Java code snippets or JSON-RPC message formats) are illustrative and not taken directly from Google’s codebase. The core concepts, goals, and partnerships of AP2 are captured accurately, but developers should always cross-check the latest specifications and the official AP2 GitHub repository for up-to-date implementation details.
+
 ## Overview
 
 AP2Java provides a complete implementation of Google's Agent Payments Protocol (AP2) in Java, allowing Java applications to participate in agent-based payment ecosystems. The project extends the a2ajava library to support payment operations between agents.
@@ -37,30 +40,6 @@ This implementation closely follows the patterns in Google's AP2 samples reposit
 - Sample implementations matching Google's AP2 samples
 - Comprehensive test coverage
 
-## Project Structure
-
-```
-ap2java/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── io/
-│   │   │       └── github/
-│   │   │           └── ap2java/
-│   │   │               ├── client/     # Client implementation
-│   │   │               ├── domain/     # Domain models
-│   │   │               ├── payment/    # Payment handling
-│   │   │               ├── server/     # Server implementation
-│   │   │               ├── examples/   # Usage examples
-│   │   │               ├── mandate/    # Mandate system
-│   │   │               ├── credentials/ # Verifiable credentials
-│   │   │               ├── security/   # Cryptographic signatures
-│   │   │               └── audit/      # Audit logging
-│   │   └── resources/  # Configuration and resource files
-│   └── test/
-│       └── java/       # Test classes
-└── pom.xml            # Maven configuration
-```
 
 ## Getting Started
 
@@ -113,12 +92,3 @@ PaymentRequest paymentRequest = PaymentRequest.builder()
 // Create payment
 PaymentResponse response = ap2Client.createPayment(paymentRequest).get();
 ```
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Google's AP2 protocol team for the specification
-- a2ajava project for the foundation
