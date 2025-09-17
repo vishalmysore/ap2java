@@ -1,0 +1,168 @@
+package io.github.ap2java.mandate;
+
+import io.github.ap2java.credentials.VerifiableCredential;
+import io.github.ap2java.credentials.CredentialSubject;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Represents a Cart Mandate in the AP2 protocol.
+ * 
+ * A Cart Mandate is issued after a user has reviewed and approved a specific set of
+ * items for purchase. It serves as an intermediary step between the Intent Mandate
+ * and the Payment Mandate.
+ */
+public class CartMandate extends VerifiableCredential {
+    
+    private String intentMandateId;
+    private String merchantId;
+    private List<CartItem> items;
+    private BigDecimal totalAmount;
+    private String currencyCode;
+    private Instant expiryDate;
+    
+    /**
+     * Represents an item in a shopping cart.
+     */
+    public static class CartItem {
+        private String id;
+        private String description;
+        private BigDecimal unitPrice;
+        private int quantity;
+        private Map<String, Object> metadata;
+        
+        public CartItem(String id, String description, BigDecimal unitPrice, int quantity) {
+            this.id = id;
+            this.description = description;
+            this.unitPrice = unitPrice;
+            this.quantity = quantity;
+            this.metadata = new HashMap<>();
+        }
+        
+        public String getId() {
+            return id;
+        }
+        
+        public String getDescription() {
+            return description;
+        }
+        
+        public BigDecimal getUnitPrice() {
+            return unitPrice;
+        }
+        
+        public int getQuantity() {
+            return quantity;
+        }
+        
+        public BigDecimal getTotalPrice() {
+            return unitPrice.multiply(BigDecimal.valueOf(quantity));
+        }
+        
+        public Map<String, Object> getMetadata() {
+            return Collections.unmodifiableMap(metadata);
+        }
+        
+        public void addMetadata(String key, Object value) {
+            metadata.put(key, value);
+        }
+    }
+    
+    /**
+     * Creates a new Cart Mandate with the specified parameters.
+     *
+     * @param issuerId The ID of the entity issuing this mandate (typically the user)
+     * @param subjectId The ID of the entity this mandate applies to (typically the agent)
+     * @param intentMandateId The ID of the Intent Mandate this Cart Mandate is derived from
+     * @param merchantId The ID of the merchant for this cart
+     * @param items List of items in the cart
+     * @param currencyCode The currency code for the cart
+     * @param expiryDate When this mandate expires
+     */
+    public CartMandate(String issuerId, String subjectId, String intentMandateId,
+                      String merchantId, List<CartItem> items, String currencyCode,
+                      Instant expiryDate) {
+        super(UUID.randomUUID().toString(), 
+              issuerId, 
+              "CartMandate", 
+              Instant.now(),
+              createSubject(subjectId, intentMandateId, merchantId, items, currencyCode, expiryDate),
+              null); // Proof will be added after creation
+        
+        this.intentMandateId = intentMandateId;
+        this.merchantId = merchantId;
+        this.items = Collections.unmodifiableList(items);
+        this.totalAmount = calculateTotal(items);
+        this.currencyCode = currencyCode;
+        this.expiryDate = expiryDate;
+    }
+    
+    private static CredentialSubject createSubject(String subjectId, String intentMandateId,
+                                                  String merchantId, List<CartItem> items,
+                                                  String currencyCode, Instant expiryDate) {
+        // Create a map of cart items for the credential
+        Map<String, Object> cartItems = new HashMap<>();
+        for (int i = 0; i < items.size(); i++) {
+            CartItem item = items.get(i);
+            Map<String, Object> itemMap = new HashMap<>();
+            itemMap.put("id", item.getId());
+            itemMap.put("description", item.getDescription());
+            itemMap.put("unitPrice", item.getUnitPrice());
+            itemMap.put("quantity", item.getQuantity());
+            itemMap.put("metadata", item.getMetadata());
+            cartItems.put("item" + i, itemMap);
+        }
+        
+        BigDecimal total = calculateTotal(items);
+        
+        return new CredentialSubject(subjectId, Map.of(
+            "type", "PaymentAgent",
+            "intentMandateId", intentMandateId,
+            "merchantId", merchantId,
+            "items", cartItems,
+            "totalAmount", total,
+            "currencyCode", currencyCode,
+            "expiryDate", expiryDate
+        ));
+    }
+    
+    private static BigDecimal calculateTotal(List<CartItem> items) {
+        return items.stream()
+            .map(CartItem::getTotalPrice)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public String getIntentMandateId() {
+        return intentMandateId;
+    }
+
+    public String getMerchantId() {
+        return merchantId;
+    }
+
+    public List<CartItem> getItems() {
+        return items;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public Instant getExpiryDate() {
+        return expiryDate;
+    }
+
+    public boolean isExpired() {
+        return expiryDate != null && Instant.now().isAfter(expiryDate);
+    }
+}

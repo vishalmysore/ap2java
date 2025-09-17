@@ -1,0 +1,124 @@
+package io.github.ap2java.mandate;
+
+import io.github.ap2java.credentials.VerifiableCredential;
+import io.github.ap2java.credentials.CredentialSubject;
+import io.github.ap2java.credentials.CredentialProof;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Represents an Intent Mandate in the AP2 protocol.
+ * 
+ * An Intent Mandate defines the spending limits, allowed merchants, and
+ * other constraints for payment operations that an agent is permitted to perform.
+ * It serves as the highest-level authorization in the AP2 mandate hierarchy.
+ */
+public class IntentMandate extends VerifiableCredential {
+    
+    private BigDecimal spendingLimit;
+    private List<String> allowedMerchants;
+    private List<String> allowedCategories;
+    private boolean requiresHumanApproval;
+    private Instant expiryDate;
+    
+    /**
+     * Creates a new Intent Mandate with the specified parameters.
+     *
+     * @param issuerId The ID of the entity issuing this mandate (typically the user)
+     * @param subjectId The ID of the entity this mandate applies to (typically the agent)
+     * @param spendingLimit The maximum amount that can be spent under this mandate
+     * @param allowedMerchants List of merchant IDs that are allowed
+     * @param allowedCategories List of merchant categories that are allowed
+     * @param requiresHumanApproval Whether human approval is required for transactions
+     * @param expiryDate When this mandate expires
+     */
+    public IntentMandate(String issuerId, String subjectId, BigDecimal spendingLimit,
+                         List<String> allowedMerchants, List<String> allowedCategories,
+                         boolean requiresHumanApproval, Instant expiryDate) {
+        super(UUID.randomUUID().toString(), 
+              issuerId, 
+              "IntentMandate", 
+              Instant.now(),
+              new CredentialSubject(subjectId, Map.of(
+                  "type", "PaymentAgent",
+                  "spendingLimit", spendingLimit,
+                  "allowedMerchants", allowedMerchants,
+                  "allowedCategories", allowedCategories,
+                  "requiresHumanApproval", requiresHumanApproval,
+                  "expiryDate", expiryDate
+              )),
+              null); // Proof will be added after creation
+        
+        this.spendingLimit = spendingLimit;
+        this.allowedMerchants = allowedMerchants != null ? 
+                                List.copyOf(allowedMerchants) : 
+                                Collections.emptyList();
+        this.allowedCategories = allowedCategories != null ? 
+                                 List.copyOf(allowedCategories) : 
+                                 Collections.emptyList();
+        this.requiresHumanApproval = requiresHumanApproval;
+        this.expiryDate = expiryDate;
+    }
+
+    /**
+     * Verifies if a transaction with the specified merchant and amount is allowed
+     * under this mandate.
+     *
+     * @param merchantId The merchant ID for the transaction
+     * @param amount The amount of the transaction
+     * @param category The category of the merchant
+     * @return true if the transaction is permitted, false otherwise
+     */
+    public boolean permits(String merchantId, BigDecimal amount, String category) {
+        // Check if the mandate is expired
+        if (expiryDate != null && Instant.now().isAfter(expiryDate)) {
+            return false;
+        }
+        
+        // Check spending limit
+        if (spendingLimit != null && amount.compareTo(spendingLimit) > 0) {
+            return false;
+        }
+        
+        // Check merchant allowlist if it's not empty
+        if (!allowedMerchants.isEmpty() && !allowedMerchants.contains(merchantId)) {
+            // If merchant is not explicitly allowed, check category
+            if (!allowedCategories.isEmpty() && category != null) {
+                return allowedCategories.contains(category);
+            }
+            return false;
+        }
+        
+        // If no merchant restrictions, transaction is allowed
+        return true;
+    }
+
+    public BigDecimal getSpendingLimit() {
+        return spendingLimit;
+    }
+
+    public List<String> getAllowedMerchants() {
+        return Collections.unmodifiableList(allowedMerchants);
+    }
+
+    public List<String> getAllowedCategories() {
+        return Collections.unmodifiableList(allowedCategories);
+    }
+
+    public boolean requiresHumanApproval() {
+        return requiresHumanApproval;
+    }
+
+    public Instant getExpiryDate() {
+        return expiryDate;
+    }
+
+    public boolean isExpired() {
+        return expiryDate != null && Instant.now().isAfter(expiryDate);
+    }
+}

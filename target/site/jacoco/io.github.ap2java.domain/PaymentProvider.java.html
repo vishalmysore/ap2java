@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">AP2Java</a> &gt; <a href="index.source.html" class="el_package">io.github.ap2java.domain</a> &gt; <span class="el_source">PaymentProvider.java</span></div><h1>PaymentProvider.java</h1><pre class="source lang-java linenums">package io.github.ap2java.domain;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Represents a payment provider in the AP2 protocol.
+ */
+<span class="nc bnc" id="L12" title="All 62 branches missed.">@Data</span>
+<span class="nc" id="L13">@Builder</span>
+<span class="nc" id="L14">@NoArgsConstructor</span>
+<span class="nc" id="L15">@AllArgsConstructor</span>
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class PaymentProvider {
+    /**
+     * Unique identifier for the payment provider.
+     */
+<span class="nc" id="L21">    private String id;</span>
+    
+    /**
+     * Name of the payment provider.
+     */
+<span class="nc" id="L26">    private String name;</span>
+    
+    /**
+     * Description of the payment provider.
+     */
+<span class="nc" id="L31">    private String description;</span>
+    
+    /**
+     * URL for the payment provider's website.
+     */
+<span class="nc" id="L36">    private String url;</span>
+    
+    /**
+     * API endpoint for the payment provider.
+     */
+<span class="nc" id="L41">    private String apiEndpoint;</span>
+    
+    /**
+     * Type of payment provider (e.g., &quot;credit_card&quot;, &quot;wallet&quot;, &quot;bank&quot;).
+     */
+<span class="nc" id="L46">    private String type;</span>
+    
+    /**
+     * Image URL for the payment provider's logo.
+     */
+<span class="nc" id="L51">    private String logoUrl;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

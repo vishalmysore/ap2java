@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultMandateVerifier.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">AP2Java</a> &gt; <a href="index.source.html" class="el_package">io.github.ap2java.mandate</a> &gt; <span class="el_source">DefaultMandateVerifier.java</span></div><h1>DefaultMandateVerifier.java</h1><pre class="source lang-java linenums">package io.github.ap2java.mandate;
+
+import io.github.ap2java.domain.PaymentRequest;
+import io.github.ap2java.security.SignatureService;
+import io.github.ap2java.credentials.VerifiableCredential;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+/**
+ * Default implementation of MandateVerifier that verifies mandates
+ * according to the AP2 protocol rules.
+ */
+public class DefaultMandateVerifier implements MandateVerifier {
+<span class="nc" id="L18">    private static final Logger logger = LoggerFactory.getLogger(DefaultMandateVerifier.class);</span>
+    
+    private final SignatureService signatureService;
+    
+<span class="nc" id="L22">    public DefaultMandateVerifier(SignatureService signatureService) {</span>
+<span class="nc" id="L23">        this.signatureService = signatureService;</span>
+<span class="nc" id="L24">    }</span>
+    
+    @Override
+    public boolean verifyIntentMandate(IntentMandate mandate, PaymentRequest request) {
+<span class="nc" id="L28">        logger.debug(&quot;Verifying Intent Mandate: {} for request: {}&quot;, </span>
+<span class="nc" id="L29">                    mandate.getId(), request.getExternalReference());</span>
+        
+        // Check signature
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (!verifySignature(mandate)) {</span>
+<span class="nc" id="L33">            logger.error(&quot;Intent Mandate signature verification failed: {}&quot;, mandate.getId());</span>
+<span class="nc" id="L34">            return false;</span>
+        }
+        
+        // Check expiry
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        if (mandate.isExpired()) {</span>
+<span class="nc" id="L39">            logger.error(&quot;Intent Mandate has expired: {}&quot;, mandate.getId());</span>
+<span class="nc" id="L40">            return false;</span>
+        }
+        
+        // Check if the mandate permits this payment
+<span class="nc" id="L44">        String merchantId = request.getReceivingAgentId();</span>
+<span class="nc" id="L45">        BigDecimal amount = request.getAmount();</span>
+<span class="nc" id="L46">        String category = null; // In a real system, this would be looked up</span>
+        
+<span class="nc" id="L48">        boolean permitted = mandate.permits(merchantId, amount, category);</span>
+        
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (!permitted) {</span>
+<span class="nc" id="L51">            logger.error(&quot;Intent Mandate does not permit this payment: {} -&gt; merchant: {}, amount: {}&quot;, </span>
+<span class="nc" id="L52">                         mandate.getId(), merchantId, amount);</span>
+        }
+        
+<span class="nc" id="L55">        return permitted;</span>
+    }
+    
+    @Override
+    public boolean verifyCartMandate(CartMandate cartMandate, IntentMandate intentMandate, PaymentRequest request) {
+<span class="nc" id="L60">        logger.debug(&quot;Verifying Cart Mandate: {} for request: {}&quot;, </span>
+<span class="nc" id="L61">                    cartMandate.getId(), request.getExternalReference());</span>
+        
+        // Check signature
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if (!verifySignature(cartMandate)) {</span>
+<span class="nc" id="L65">            logger.error(&quot;Cart Mandate signature verification failed: {}&quot;, cartMandate.getId());</span>
+<span class="nc" id="L66">            return false;</span>
+        }
+        
+        // Check expiry
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (cartMandate.isExpired()) {</span>
+<span class="nc" id="L71">            logger.error(&quot;Cart Mandate has expired: {}&quot;, cartMandate.getId());</span>
+<span class="nc" id="L72">            return false;</span>
+        }
+        
+        // Verify that the Cart Mandate references the correct Intent Mandate
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (!cartMandate.getIntentMandateId().equals(intentMandate.getId())) {</span>
+<span class="nc" id="L77">            logger.error(&quot;Cart Mandate references incorrect Intent Mandate: {} vs {}&quot;, </span>
+<span class="nc" id="L78">                         cartMandate.getIntentMandateId(), intentMandate.getId());</span>
+<span class="nc" id="L79">            return false;</span>
+        }
+        
+        // Verify that the merchant matches
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (!cartMandate.getMerchantId().equals(request.getReceivingAgentId())) {</span>
+<span class="nc" id="L84">            logger.error(&quot;Cart Mandate merchant does not match request: {} vs {}&quot;, </span>
+<span class="nc" id="L85">                         cartMandate.getMerchantId(), request.getReceivingAgentId());</span>
+<span class="nc" id="L86">            return false;</span>
+        }
+        
+        // Verify amount
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (cartMandate.getTotalAmount().compareTo(request.getAmount()) != 0) {</span>
+<span class="nc" id="L91">            logger.error(&quot;Cart Mandate amount does not match request: {} vs {}&quot;, </span>
+<span class="nc" id="L92">                         cartMandate.getTotalAmount(), request.getAmount());</span>
+<span class="nc" id="L93">            return false;</span>
+        }
+        
+        // Verify currency
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (!cartMandate.getCurrencyCode().equals(request.getCurrencyCode())) {</span>
+<span class="nc" id="L98">            logger.error(&quot;Cart Mandate currency does not match request: {} vs {}&quot;, </span>
+<span class="nc" id="L99">                         cartMandate.getCurrencyCode(), request.getCurrencyCode());</span>
+<span class="nc" id="L100">            return false;</span>
+        }
+        
+<span class="nc" id="L103">        return true;</span>
+    }
+    
+    @Override
+    public boolean verifyPaymentMandate(PaymentMandate paymentMandate, CartMandate cartMandate, PaymentRequest request) {
+<span class="nc" id="L108">        logger.debug(&quot;Verifying Payment Mandate: {} for request: {}&quot;, </span>
+<span class="nc" id="L109">                    paymentMandate.getId(), request.getExternalReference());</span>
+        
+        // Check signature
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (!verifySignature(paymentMandate)) {</span>
+<span class="nc" id="L113">            logger.error(&quot;Payment Mandate signature verification failed: {}&quot;, paymentMandate.getId());</span>
+<span class="nc" id="L114">            return false;</span>
+        }
+        
+        // Check expiry
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if (paymentMandate.isExpired()) {</span>
+<span class="nc" id="L119">            logger.error(&quot;Payment Mandate has expired: {}&quot;, paymentMandate.getId());</span>
+<span class="nc" id="L120">            return false;</span>
+        }
+        
+        // Verify that the Payment Mandate references the correct Cart Mandate
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (!paymentMandate.getCartMandateId().equals(cartMandate.getId())) {</span>
+<span class="nc" id="L125">            logger.error(&quot;Payment Mandate references incorrect Cart Mandate: {} vs {}&quot;, </span>
+<span class="nc" id="L126">                         paymentMandate.getCartMandateId(), cartMandate.getId());</span>
+<span class="nc" id="L127">            return false;</span>
+        }
+        
+        // Verify amount
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (paymentMandate.getAmount().compareTo(request.getAmount()) != 0) {</span>
+<span class="nc" id="L132">            logger.error(&quot;Payment Mandate amount does not match request: {} vs {}&quot;, </span>
+<span class="nc" id="L133">                         paymentMandate.getAmount(), request.getAmount());</span>
+<span class="nc" id="L134">            return false;</span>
+        }
+        
+        // Verify currency
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        if (!paymentMandate.getCurrencyCode().equals(request.getCurrencyCode())) {</span>
+<span class="nc" id="L139">            logger.error(&quot;Payment Mandate currency does not match request: {} vs {}&quot;, </span>
+<span class="nc" id="L140">                         paymentMandate.getCurrencyCode(), request.getCurrencyCode());</span>
+<span class="nc" id="L141">            return false;</span>
+        }
+        
+        // Check payment method if specified in the request
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (request.getPaymentMethod() != null &amp;&amp; </span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            !request.getPaymentMethod().equals(paymentMandate.getPaymentMethodId())) {</span>
+<span class="nc" id="L147">            logger.error(&quot;Payment Mandate method does not match request: {} vs {}&quot;, </span>
+<span class="nc" id="L148">                         paymentMandate.getPaymentMethodId(), request.getPaymentMethod());</span>
+<span class="nc" id="L149">            return false;</span>
+        }
+        
+<span class="nc" id="L152">        return true;</span>
+    }
+    
+    @Override
+    public boolean verifySignature(Object mandate) {
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        if (mandate == null) {</span>
+<span class="nc" id="L158">            return false;</span>
+        }
+        
+<span class="nc bnc" id="L161" title="All 6 branches missed.">        if (mandate instanceof IntentMandate ||</span>
+            mandate instanceof CartMandate ||
+            mandate instanceof PaymentMandate) {
+            
+<span class="nc" id="L165">            return signatureService.verifyCredential((VerifiableCredential) mandate);</span>
+        }
+        
+<span class="nc" id="L168">        logger.error(&quot;Unknown mandate type: {}&quot;, mandate.getClass().getName());</span>
+<span class="nc" id="L169">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

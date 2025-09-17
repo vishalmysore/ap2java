@@ -1,0 +1,136 @@
+package io.github.ap2java.mandate;
+
+import io.github.ap2java.credentials.VerifiableCredential;
+import io.github.ap2java.credentials.CredentialSubject;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Represents a Payment Mandate in the AP2 protocol.
+ * 
+ * A Payment Mandate is the final authorization step that gives permission for a specific
+ * payment transaction to occur. It references a Cart Mandate and provides specific
+ * payment details.
+ */
+public class PaymentMandate extends VerifiableCredential {
+    
+    private String cartMandateId;
+    private String paymentMethodId;
+    private BigDecimal amount;
+    private String currencyCode;
+    private String paymentProcessor;
+    private Map<String, Object> paymentDetails;
+    private Instant expiryDate;
+    
+    /**
+     * Creates a new Payment Mandate with the specified parameters.
+     *
+     * @param issuerId The ID of the entity issuing this mandate (typically the user)
+     * @param subjectId The ID of the entity this mandate applies to (typically the agent)
+     * @param cartMandateId The ID of the Cart Mandate this Payment Mandate is derived from
+     * @param paymentMethodId The ID of the payment method to use
+     * @param amount The amount to be paid
+     * @param currencyCode The currency code for the payment
+     * @param paymentProcessor The payment processor to use
+     * @param paymentDetails Additional payment details (may include sensitive information)
+     * @param expiryDate When this mandate expires
+     */
+    public PaymentMandate(String issuerId, String subjectId, String cartMandateId,
+                         String paymentMethodId, BigDecimal amount, String currencyCode,
+                         String paymentProcessor, Map<String, Object> paymentDetails,
+                         Instant expiryDate) {
+        super(UUID.randomUUID().toString(), 
+              issuerId, 
+              "PaymentMandate", 
+              Instant.now(),
+              createSubject(subjectId, cartMandateId, paymentMethodId, amount, 
+                           currencyCode, paymentProcessor, paymentDetails, expiryDate),
+              null); // Proof will be added after creation
+        
+        this.cartMandateId = cartMandateId;
+        this.paymentMethodId = paymentMethodId;
+        this.amount = amount;
+        this.currencyCode = currencyCode;
+        this.paymentProcessor = paymentProcessor;
+        this.paymentDetails = paymentDetails != null ? 
+                             new HashMap<>(paymentDetails) : 
+                             new HashMap<>();
+        this.expiryDate = expiryDate;
+    }
+    
+    private static CredentialSubject createSubject(String subjectId, String cartMandateId,
+                                                 String paymentMethodId, BigDecimal amount,
+                                                 String currencyCode, String paymentProcessor,
+                                                 Map<String, Object> paymentDetails,
+                                                 Instant expiryDate) {
+        Map<String, Object> details = new HashMap<>();
+        
+        // Only include non-sensitive payment details in the credential
+        if (paymentDetails != null) {
+            for (Map.Entry<String, Object> entry : paymentDetails.entrySet()) {
+                // Filter out sensitive information (this would need a more sophisticated
+                // implementation in a real system)
+                if (!isSensitive(entry.getKey())) {
+                    details.put(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+        
+        return new CredentialSubject(subjectId, Map.of(
+            "type", "PaymentAgent",
+            "cartMandateId", cartMandateId,
+            "paymentMethodId", paymentMethodId,
+            "amount", amount,
+            "currencyCode", currencyCode,
+            "paymentProcessor", paymentProcessor,
+            "paymentDetails", details,
+            "expiryDate", expiryDate
+        ));
+    }
+    
+    // A simple check for sensitive fields - would need to be expanded in a real implementation
+    private static boolean isSensitive(String key) {
+        String lowerKey = key.toLowerCase();
+        return lowerKey.contains("card") || 
+               lowerKey.contains("cvv") || 
+               lowerKey.contains("password") ||
+               lowerKey.contains("secret") ||
+               lowerKey.contains("token");
+    }
+
+    public String getCartMandateId() {
+        return cartMandateId;
+    }
+
+    public String getPaymentMethodId() {
+        return paymentMethodId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public String getPaymentProcessor() {
+        return paymentProcessor;
+    }
+
+    public Map<String, Object> getPaymentDetails() {
+        return new HashMap<>(paymentDetails);
+    }
+
+    public Instant getExpiryDate() {
+        return expiryDate;
+    }
+
+    public boolean isExpired() {
+        return expiryDate != null && Instant.now().isAfter(expiryDate);
+    }
+}

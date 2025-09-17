@@ -1,0 +1,449 @@
+package io.github.ap2java.examples.secure;
+
+import io.github.ap2java.domain.PaymentRequest;
+import io.github.ap2java.domain.PaymentResponse;
+import io.github.ap2java.domain.PaymentStatus;
+import io.github.ap2java.client.AP2Client;
+import io.github.ap2java.payment.SamplePaymentProcessor;
+import io.github.ap2java.mandate.IntentMandate;
+import io.github.ap2java.mandate.CartMandate;
+import io.github.ap2java.mandate.PaymentMandate;
+import io.github.ap2java.mandate.MandateEnforcer;
+import io.github.ap2java.mandate.DefaultMandateVerifier;
+import io.github.ap2java.mandate.MandateRepository;
+import io.github.ap2java.mandate.HumanApprovalService;
+import io.github.ap2java.security.SignatureService;
+import io.github.ap2java.audit.AuditLogger;
+import io.github.ap2java.credentials.VerifiableCredential;
+import io.github.ap2java.credentials.CredentialProof;
+
+import java.security.KeyPair;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Example demonstrating human-present and human-not-present payment flows
+ * using the AP2 mandate system.
+ */
+public class SecurePaymentExample {
+    private static final Logger logger = LoggerFactory.getLogger(SecurePaymentExample.class);
+    
+    public static void main(String[] args) {
+        logger.info("Starting AP2 secure payment example");
+        
+        // For the example, we'll create simple in-memory implementations
+        MockSignatureService signatureService = new MockSignatureService();
+        MockAuditLogger auditLogger = new MockAuditLogger();
+        MockMandateRepository mandateRepository = new MockMandateRepository();
+        MockHumanApprovalService humanApprovalService = new MockHumanApprovalService(signatureService);
+        
+        // Create the mandate verifier and enforcer
+        DefaultMandateVerifier verifier = new DefaultMandateVerifier(signatureService);
+        MandateEnforcer enforcer = new MandateEnforcer(
+            verifier, signatureService, auditLogger, mandateRepository, humanApprovalService);
+        
+        // Create our secure payment processor
+        SamplePaymentProcessor baseProcessor = new SamplePaymentProcessor();
+        SecurePaymentProcessor secureProcessor = new SecurePaymentProcessor(
+            baseProcessor, enforcer, mandateRepository);
+        
+        // Create an AP2 client with our secure processor
+        AP2Client client = new AP2Client(secureProcessor);
+        
+        // Create a sample Intent Mandate
+        IntentMandate intentMandate = createSampleIntentMandate(signatureService, false);
+        mandateRepository.storeIntentMandate(intentMandate);
+        
+        // Demonstrate a payment with the Intent Mandate (human not present)
+        demonstrateHumanNotPresentFlow(client, intentMandate);
+        
+        // Now create an Intent Mandate that requires human approval
+        IntentMandate humanPresentMandate = createSampleIntentMandate(signatureService, true);
+        mandateRepository.storeIntentMandate(humanPresentMandate);
+        
+        // Demonstrate a payment with human approval
+        demonstrateHumanPresentFlow(client, humanPresentMandate, humanApprovalService);
+        
+        logger.info("AP2 secure payment example completed");
+    }
+    
+    private static IntentMandate createSampleIntentMandate(SignatureService signatureService, 
+                                                         boolean requiresHumanApproval) {
+        IntentMandate mandate = new IntentMandate(
+            "user-123", // issuer
+            "agent-123", // subject
+            new BigDecimal("1000.00"), // spending limit
+            Arrays.asList("merchant-456", "merchant-789"), // allowed merchants
+            Arrays.asList("retail", "services"), // allowed categories
+            requiresHumanApproval, // requires human approval
+            Instant.now().plus(30, ChronoUnit.DAYS) // expiry date
+        );
+        
+        // Sign the mandate
+        return (IntentMandate) signatureService.signCredential(mandate, "user-key-1");
+    }
+    
+    private static void demonstrateHumanNotPresentFlow(AP2Client client, IntentMandate mandate) {
+        logger.info("Demonstrating human-not-present payment flow");
+        
+        // Create a payment request within the mandate limits
+        PaymentRequest request = new PaymentRequest(
+            new BigDecimal("99.99"),
+            "USD",
+            "agent-123", // the agent authorized by the mandate
+            "merchant-456", // an allowed merchant
+            "Purchase of Premium Service"
+        );
+        
+        // Set additional fields
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("orderId", UUID.randomUUID().toString());
+        metadata.put("customerName", "John Doe");
+        request.setMetadata(metadata);
+        request.setExternalReference("INV-2023-12345");
+        request.setCallbackUrl("https://example.com/callback");
+        request.setPaymentMethod("credit_card");
+        
+        // Process the payment
+        try {
+            // Create the payment
+            PaymentResponse response = client.createPayment(request);
+            logger.info("Payment created: {}", response);
+            
+            // Authorize and capture
+            String paymentId = response.getPaymentId();
+            response = client.authorizePayment(paymentId);
+            logger.info("Payment authorized: {}", response);
+            
+            response = client.capturePayment(paymentId);
+            logger.info("Payment captured: {}", response);
+            
+            // Check final status
+            response = client.getPaymentStatus(paymentId);
+            logger.info("Final payment status: {}", response);
+            
+        } catch (Exception e) {
+            logger.error("Payment processing failed", e);
+        }
+    }
+    
+    private static void demonstrateHumanPresentFlow(AP2Client client, IntentMandate mandate,
+                                                  MockHumanApprovalService approvalService) {
+        logger.info("Demonstrating human-present payment flow");
+        
+        // For the human-present flow, we need to simulate human approval
+        // In a real application, this would involve UI interaction
+        approvalService.setSimulatedApprovalResult(true);
+        
+        // Create a payment request
+        PaymentRequest request = new PaymentRequest(
+            new BigDecimal("199.99"),
+            "USD",
+            "agent-123", // the agent authorized by the mandate
+            "merchant-456", // an allowed merchant
+            "Purchase of Premium Service with Human Approval"
+        );
+        
+        // Set additional fields
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("orderId", UUID.randomUUID().toString());
+        metadata.put("customerName", "Jane Smith");
+        request.setMetadata(metadata);
+        request.setExternalReference("INV-2023-67890");
+        request.setCallbackUrl("https://example.com/callback");
+        request.setPaymentMethod("credit_card");
+        
+        // Process the payment
+        try {
+            // Create the payment
+            PaymentResponse response = client.createPayment(request);
+            logger.info("Payment created with human approval: {}", response);
+            
+            // Authorize and capture
+            String paymentId = response.getPaymentId();
+            response = client.authorizePayment(paymentId);
+            logger.info("Payment authorized: {}", response);
+            
+            response = client.capturePayment(paymentId);
+            logger.info("Payment captured: {}", response);
+            
+            // Check final status
+            response = client.getPaymentStatus(paymentId);
+            logger.info("Final payment status: {}", response);
+            
+        } catch (Exception e) {
+            logger.error("Payment processing failed", e);
+        }
+    }
+    
+    // Mock implementations for the example
+    
+    static class MockSignatureService implements SignatureService {
+        @Override
+        public VerifiableCredential signCredential(VerifiableCredential credential, String keyId) {
+            // Create a simple mock proof
+            CredentialProof proof = new CredentialProof(
+                "Ed25519Signature2020",
+                Instant.now(),
+                "did:example:" + keyId,
+                "authentication",
+                "mocksignature" + UUID.randomUUID().toString()
+            );
+            credential.setProof(proof);
+            return credential;
+        }
+        
+        @Override
+        public boolean verifyCredential(VerifiableCredential credential) {
+            // In this mock, all credentials are considered valid if they have a proof
+            return credential != null && credential.getProof() != null;
+        }
+        
+        @Override
+        public KeyPair generateKeyPair(String keyId) {
+            // Mock implementation - would return a real KeyPair in production
+            return null;
+        }
+        
+        @Override
+        public CredentialProof createProof(String keyId, String method, String purpose) {
+            return new CredentialProof(
+                "Ed25519Signature2020",
+                Instant.now(),
+                method,
+                purpose,
+                "mocksignature" + UUID.randomUUID().toString()
+            );
+        }
+    }
+    
+    static class MockAuditLogger implements AuditLogger {
+        @Override
+        public String logEvent(String eventType, String description, Map<String, Object> data) {
+            String logId = UUID.randomUUID().toString();
+            logger.info("AUDIT: [{}] {} - {}: {}", logId, eventType, description, data);
+            return logId;
+        }
+        
+        @Override
+        public String logSignedEvent(String eventType, String description, 
+                                    Map<String, Object> data, String signerId, String signature) {
+            String logId = UUID.randomUUID().toString();
+            logger.info("AUDIT SIGNED: [{}] {} - {} by {}: {}", 
+                       logId, eventType, description, signerId, data);
+            return logId;
+        }
+        
+        @Override
+        public Iterable<AuditLogEntry> getAuditTrail(String entityId, Instant startTime, Instant endTime) {
+            // Mock implementation - would return real audit logs in production
+            return Collections.emptyList();
+        }
+    }
+    
+    static class MockMandateRepository implements MandateRepository {
+        private Map<String, IntentMandate> intentMandates = new HashMap<>();
+        private Map<String, CartMandate> cartMandates = new HashMap<>();
+        private Map<String, PaymentMandate> paymentMandates = new HashMap<>();
+        private Map<String, String> paymentToIntentMandate = new HashMap<>();
+        private Map<String, String> paymentToCartMandate = new HashMap<>();
+        private Map<String, String> paymentToPaymentMandate = new HashMap<>();
+        
+        @Override
+        public String storeIntentMandate(IntentMandate mandate) {
+            intentMandates.put(mandate.getId(), mandate);
+            return mandate.getId();
+        }
+        
+        @Override
+        public String storeCartMandate(CartMandate mandate) {
+            cartMandates.put(mandate.getId(), mandate);
+            return mandate.getId();
+        }
+        
+        @Override
+        public String storePaymentMandate(PaymentMandate mandate) {
+            paymentMandates.put(mandate.getId(), mandate);
+            return mandate.getId();
+        }
+        
+        @Override
+        public IntentMandate findActiveIntentMandateForAgent(String agentId, String merchantId) {
+            // Find a mandate for this agent and merchant
+            for (IntentMandate mandate : intentMandates.values()) {
+                if (mandate.getSubject().getId().equals(agentId) &&
+                    !mandate.isExpired() &&
+                    (merchantId == null || mandate.getAllowedMerchants().contains(merchantId))) {
+                    return mandate;
+                }
+            }
+            return null;
+        }
+        
+        @Override
+        public CartMandate findCartMandate(String mandateId) {
+            return cartMandates.get(mandateId);
+        }
+        
+        @Override
+        public PaymentMandate findPaymentMandate(String mandateId) {
+            return paymentMandates.get(mandateId);
+        }
+        
+        @Override
+        public IntentMandate findIntentMandateForPayment(String paymentId) {
+            String mandateId = paymentToIntentMandate.get(paymentId);
+            if (mandateId == null) {
+                return null;
+            }
+            return intentMandates.get(mandateId);
+        }
+        
+        @Override
+        public CartMandate findCartMandateForPayment(String paymentId) {
+            String mandateId = paymentToCartMandate.get(paymentId);
+            if (mandateId == null) {
+                return null;
+            }
+            return cartMandates.get(mandateId);
+        }
+        
+        @Override
+        public PaymentMandate findPaymentMandateForPayment(String paymentId) {
+            String mandateId = paymentToPaymentMandate.get(paymentId);
+            if (mandateId == null) {
+                return null;
+            }
+            return paymentMandates.get(mandateId);
+        }
+        
+        @Override
+        public boolean revokeMandate(String mandateId, String reason) {
+            // For the mock, we just remove the mandate from our maps
+            if (intentMandates.remove(mandateId) != null) {
+                return true;
+            }
+            if (cartMandates.remove(mandateId) != null) {
+                return true;
+            }
+            if (paymentMandates.remove(mandateId) != null) {
+                return true;
+            }
+            return false;
+        }
+        
+        // Helper method for the example
+        public void associatePaymentWithMandates(String paymentId, IntentMandate intentMandate,
+                                               CartMandate cartMandate, PaymentMandate paymentMandate) {
+            if (intentMandate != null) {
+                paymentToIntentMandate.put(paymentId, intentMandate.getId());
+            }
+            if (cartMandate != null) {
+                paymentToCartMandate.put(paymentId, cartMandate.getId());
+            }
+            if (paymentMandate != null) {
+                paymentToPaymentMandate.put(paymentId, paymentMandate.getId());
+            }
+        }
+    }
+    
+    static class MockHumanApprovalService implements HumanApprovalService {
+        private SignatureService signatureService;
+        private boolean simulatedApprovalResult = true;
+        private String callbackUrl;
+        
+        public MockHumanApprovalService(SignatureService signatureService) {
+            this.signatureService = signatureService;
+        }
+        
+        public void setSimulatedApprovalResult(boolean approved) {
+            this.simulatedApprovalResult = approved;
+        }
+        
+        @Override
+        public CartMandate requestCartApproval(IntentMandate intentMandate, PaymentRequest request) {
+            // In a real implementation, this would show a UI to the user
+            // For the mock, we just simulate approval or denial
+            if (!simulatedApprovalResult) {
+                return null;
+            }
+            
+            logger.info("Human approval requested for cart with amount: {}", request.getAmount());
+            
+            // Create cart items based on the request
+            CartMandate.CartItem item = new CartMandate.CartItem(
+                "item-1",
+                request.getDescription(),
+                request.getAmount(),
+                1
+            );
+            
+            // Create a cart mandate
+            CartMandate cartMandate = new CartMandate(
+                intentMandate.getIssuer(),
+                intentMandate.getSubject().getId(),
+                intentMandate.getId(),
+                request.getReceivingAgentId(),
+                Arrays.asList(item),
+                request.getCurrencyCode(),
+                Instant.now().plus(1, ChronoUnit.HOURS)
+            );
+            
+            // Sign the mandate
+            return (CartMandate) signatureService.signCredential(cartMandate, "user-key-1");
+        }
+        
+        @Override
+        public PaymentMandate requestPaymentApproval(CartMandate cartMandate, PaymentRequest request) {
+            // In a real implementation, this would show a UI to the user
+            // For the mock, we just simulate approval or denial
+            if (!simulatedApprovalResult) {
+                return null;
+            }
+            
+            logger.info("Human approval requested for payment with amount: {}", request.getAmount());
+            
+            // Create payment details
+            Map<String, Object> paymentDetails = new HashMap<>();
+            paymentDetails.put("paymentMethod", request.getPaymentMethod());
+            
+            // Create a payment mandate
+            PaymentMandate paymentMandate = new PaymentMandate(
+                cartMandate.getIssuer(),
+                cartMandate.getSubject().getId(),
+                cartMandate.getId(),
+                request.getPaymentMethod(),
+                request.getAmount(),
+                request.getCurrencyCode(),
+                "sample_processor",
+                paymentDetails,
+                Instant.now().plus(15, ChronoUnit.MINUTES)
+            );
+            
+            // Sign the mandate
+            return (PaymentMandate) signatureService.signCredential(paymentMandate, "user-key-1");
+        }
+        
+        @Override
+        public boolean isHumanApprovalRequired(PaymentRequest request) {
+            // In a real implementation, this would check specific policies
+            // For the mock, we always return true
+            return true;
+        }
+        
+        @Override
+        public void setApprovalCallback(String callbackUrl) {
+            this.callbackUrl = callbackUrl;
+        }
+    }
+}

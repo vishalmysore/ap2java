@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentMandate.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">AP2Java</a> &gt; <a href="index.source.html" class="el_package">io.github.ap2java.mandate</a> &gt; <span class="el_source">PaymentMandate.java</span></div><h1>PaymentMandate.java</h1><pre class="source lang-java linenums">package io.github.ap2java.mandate;
+
+import io.github.ap2java.credentials.VerifiableCredential;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * A simplified version of the PaymentMandate class for the AP2 protocol.
+ * This class represents the final authorization for a specific payment transaction.
+ */
+public class PaymentMandate {
+    
+    private String id;
+    private String requestingAgentId;
+    private String receivingAgentId;
+    private Instant createdAt;
+    private Instant expiresAt;
+    private BigDecimal amount;
+    private String currencyCode;
+    private String paymentReference;
+    private String parentMandateId;
+    private Map&lt;String, Object&gt; paymentDetails;
+    private VerifiableCredential credential;
+    
+    /**
+     * Default constructor
+     */
+<span class="nc" id="L30">    public PaymentMandate() {</span>
+<span class="nc" id="L31">        this.paymentDetails = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L32">    }</span>
+
+    /**
+     * Constructor with all required fields
+     * 
+     * @param id Unique identifier for this mandate
+     * @param requestingAgentId The ID of the agent making the request
+     * @param receivingAgentId The ID of the agent receiving the payment
+     * @param paymentReference Reference to the payment in the external system
+     * @param amount The amount to be paid
+     * @param currencyCode The currency code for the transaction
+     * @param parentMandateId The ID of the parent Cart Mandate
+     * @param paymentDetails Additional payment details
+     * @param expiresAt When this mandate expires
+     */
+    public PaymentMandate(String id, String requestingAgentId, String receivingAgentId,
+                        String paymentReference, BigDecimal amount, String currencyCode,
+                        String parentMandateId, Map&lt;String, Object&gt; paymentDetails,
+<span class="nc" id="L50">                        Instant expiresAt) {</span>
+<span class="nc" id="L51">        this.id = id;</span>
+<span class="nc" id="L52">        this.requestingAgentId = requestingAgentId;</span>
+<span class="nc" id="L53">        this.receivingAgentId = receivingAgentId;</span>
+<span class="nc" id="L54">        this.paymentReference = paymentReference;</span>
+<span class="nc" id="L55">        this.amount = amount;</span>
+<span class="nc" id="L56">        this.currencyCode = currencyCode;</span>
+<span class="nc" id="L57">        this.parentMandateId = parentMandateId;</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        this.paymentDetails = paymentDetails != null ? paymentDetails : new HashMap&lt;&gt;();</span>
+<span class="nc" id="L59">        this.createdAt = Instant.now();</span>
+<span class="nc" id="L60">        this.expiresAt = expiresAt;</span>
+<span class="nc" id="L61">    }</span>
+
+    // Getters and setters
+    
+    public String getId() {
+<span class="nc" id="L66">        return id;</span>
+    }
+
+    public void setId(String id) {
+<span class="nc" id="L70">        this.id = id;</span>
+<span class="nc" id="L71">    }</span>
+
+    public String getRequestingAgentId() {
+<span class="nc" id="L74">        return requestingAgentId;</span>
+    }
+
+    public void setRequestingAgentId(String requestingAgentId) {
+<span class="nc" id="L78">        this.requestingAgentId = requestingAgentId;</span>
+<span class="nc" id="L79">    }</span>
+
+    public String getReceivingAgentId() {
+<span class="nc" id="L82">        return receivingAgentId;</span>
+    }
+
+    public void setReceivingAgentId(String receivingAgentId) {
+<span class="nc" id="L86">        this.receivingAgentId = receivingAgentId;</span>
+<span class="nc" id="L87">    }</span>
+
+    public Instant getCreatedAt() {
+<span class="nc" id="L90">        return createdAt;</span>
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+<span class="nc" id="L94">        this.createdAt = createdAt;</span>
+<span class="nc" id="L95">    }</span>
+
+    public Instant getExpiresAt() {
+<span class="nc" id="L98">        return expiresAt;</span>
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+<span class="nc" id="L102">        this.expiresAt = expiresAt;</span>
+<span class="nc" id="L103">    }</span>
+
+    public BigDecimal getAmount() {
+<span class="nc" id="L106">        return amount;</span>
+    }
+
+    public void setAmount(BigDecimal amount) {
+<span class="nc" id="L110">        this.amount = amount;</span>
+<span class="nc" id="L111">    }</span>
+
+    public String getCurrencyCode() {
+<span class="nc" id="L114">        return currencyCode;</span>
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+<span class="nc" id="L118">        this.currencyCode = currencyCode;</span>
+<span class="nc" id="L119">    }</span>
+    
+    public String getPaymentReference() {
+<span class="nc" id="L122">        return paymentReference;</span>
+    }
+    
+    public void setPaymentReference(String paymentReference) {
+<span class="nc" id="L126">        this.paymentReference = paymentReference;</span>
+<span class="nc" id="L127">    }</span>
+    
+    public String getParentMandateId() {
+<span class="nc" id="L130">        return parentMandateId;</span>
+    }
+    
+    public void setParentMandateId(String parentMandateId) {
+<span class="nc" id="L134">        this.parentMandateId = parentMandateId;</span>
+<span class="nc" id="L135">    }</span>
+    
+    public Map&lt;String, Object&gt; getPaymentDetails() {
+<span class="nc" id="L138">        return paymentDetails;</span>
+    }
+    
+    public void setPaymentDetails(Map&lt;String, Object&gt; paymentDetails) {
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        this.paymentDetails = paymentDetails != null ? paymentDetails : new HashMap&lt;&gt;();</span>
+<span class="nc" id="L143">    }</span>
+    
+    public VerifiableCredential getCredential() {
+<span class="nc" id="L146">        return credential;</span>
+    }
+    
+    public void setCredential(VerifiableCredential credential) {
+<span class="nc" id="L150">        this.credential = credential;</span>
+<span class="nc" id="L151">    }</span>
+    
+    /**
+     * Checks if this mandate is valid for the current time.
+     * 
+     * @return true if the mandate is valid, false otherwise
+     */
+    public boolean isValid() {
+<span class="nc" id="L159">        Instant now = Instant.now();</span>
+<span class="nc bnc" id="L160" title="All 4 branches missed.">        return now.isAfter(createdAt) &amp;&amp; now.isBefore(expiresAt);</span>
+    }
+    
+    /**
+     * Checks if this mandate is expired.
+     * 
+     * @return true if the mandate is expired, false otherwise
+     */
+    public boolean isExpired() {
+<span class="nc" id="L169">        return Instant.now().isAfter(expiresAt);</span>
+    }
+    
+    /**
+     * Gets the ID of the cart mandate that this payment mandate is based on.
+     * 
+     * @return the cart mandate ID
+     */
+    public String getCartMandateId() {
+<span class="nc" id="L178">        return parentMandateId;</span>
+    }
+    
+    /**
+     * Gets the payment method ID for this payment mandate.
+     * 
+     * @return the payment method ID
+     */
+    public String getPaymentMethodId() {
+<span class="nc bnc" id="L187" title="All 4 branches missed.">        if (paymentDetails != null &amp;&amp; paymentDetails.containsKey(&quot;paymentMethodId&quot;)) {</span>
+<span class="nc" id="L188">            return paymentDetails.get(&quot;paymentMethodId&quot;).toString();</span>
+        }
+<span class="nc" id="L190">        return null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
