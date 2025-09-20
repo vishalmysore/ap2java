@@ -36,3 +36,13 @@ build/
 
 ### Mac OS ###
 .DS_Store
+/codeStyles/codeStyleConfig.xml
+/copilot.data.migration.agent.xml
+/copilot.data.migration.ask.xml
+/copilot.data.migration.ask2agent.xml
+/copilot.data.migration.edit.xml
+/encodings.xml
+/misc.xml
+/codeStyles/Project.xml
+/vcs.xml
+/workspace.xml
