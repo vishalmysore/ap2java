@@ -9,6 +9,8 @@ The AP2 protocol is new and still evolving. I have made every effort to validate
 
 AP2Java provides a complete implementation of Google's Agent Payments Protocol (AP2) in Java, allowing Java applications to participate in agent-based payment ecosystems. The project extends the a2ajava library to support payment operations between agents.
 
+[![codecov](https://codecov.io/gh/vishalmysore/ap2java/graph/badge.svg?token=BlBKECdgIk)](https://codecov.io/gh/vishalmysore/ap2java)  
+
 ## Alignment with Google's AP2 Samples 
 
 This implementation closely follows the patterns in Google's AP2 samples repository:
